@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 import json
 import os
-import secrets
 import threading
+import time
+from collections import deque
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -17,15 +18,26 @@ from .ingest import MAX_BYTES, decode, ingest
 from .jobs import enqueue
 from .models import PartEdit, Review
 from .retrieval import Search
-from .security import BodyLimit, authenticated, same_origin, session_value
+from .security import (
+    SESSION_MAX_AGE,
+    BodyLimit,
+    authenticated,
+    boolean_env,
+    same_origin,
+    secure_equal,
+    session_value,
+)
 from .settings import initialise, library
 from .store import Store
 
 
-def create_app(workspace="work", token=None):
+def create_app(workspace="work", token=None, read_only=None):
     token = token if token is not None else os.environ.get("CRUMBLE_TOKEN", "")
     if token and len(token) < 32:
         raise ValueError("CRUMBLE_TOKEN must contain at least 32 characters")
+    read_only = boolean_env("CRUMBLE_READ_ONLY") if read_only is None else bool(read_only)
+    cookie_secure = boolean_env("CRUMBLE_COOKIE_SECURE") if "CRUMBLE_COOKIE_SECURE" in os.environ else None
+    recent_searches = deque()
     store = Store(workspace)
     settings = initialise(store)
     encoder = Encoder(settings["encoder"], settings["device"])
@@ -44,6 +56,27 @@ def create_app(workspace="work", token=None):
         protected = request.url.path.startswith(("/api/", "/assets/")) and request.url.path != "/api/session"
         if protected and not authenticated(request, token):
             return JSONResponse({"detail": "Sign in with the workspace access token"}, status_code=401)
+        if read_only:
+            mutable = request.method not in ("GET", "HEAD", "OPTIONS")
+            safe_session = request.url.path == "/api/session" and request.method in ("POST", "DELETE")
+            safe_search = request.url.path == "/api/search/photo" and request.method == "POST"
+            if (mutable and not safe_session and not safe_search) or request.url.path == "/api/export":
+                return JSONResponse(
+                    {"detail": "This public demo is read-only. Use your own workspace to save changes."},
+                    status_code=403,
+                )
+            is_search = request.url.path.startswith("/api/search/") or request.url.path.endswith("/similar")
+            if is_search:
+                stamp = time.monotonic()
+                while recent_searches and recent_searches[0] <= stamp - 60:
+                    recent_searches.popleft()
+                if len(recent_searches) >= 30:
+                    return JSONResponse(
+                        {"detail": "Public demo search limit reached. Try again in a minute."},
+                        status_code=429,
+                        headers={"Retry-After": "60"},
+                    )
+                recent_searches.append(stamp)
         response = await call_next(request)
         response.headers.update(
             {
@@ -73,7 +106,7 @@ def create_app(workspace="work", token=None):
     async def login(request: Request):
         data = await request.json()
         supplied = data.get("token", "") if isinstance(data, dict) else ""
-        if not isinstance(supplied, str) or (token and not secrets.compare_digest(token, supplied)):
+        if not isinstance(supplied, str) or (token and not secure_equal(token, supplied)):
             raise HTTPException(401, "Invalid access token")
         response = JSONResponse({"ok": True})
         response.set_cookie(
@@ -81,8 +114,8 @@ def create_app(workspace="work", token=None):
             session_value(token),
             httponly=True,
             samesite="strict",
-            secure=request.url.scheme == "https",
-            max_age=28800,
+            secure=cookie_secure if cookie_secure is not None else request.url.scheme == "https",
+            max_age=SESSION_MAX_AGE,
         )
         return response
 
@@ -106,6 +139,14 @@ def create_app(workspace="work", token=None):
             "index": index,
             "smv_library": library(store),
             "version": __version__,
+            "read_only": read_only,
+            "capabilities": {
+                "write": not read_only,
+                "infer": not read_only and encoder.name == "fashion",
+                "photo_search": True,
+                "text_search": encoder.name == "fashion",
+            },
+            "public_search_limit_per_minute": 30 if read_only else None,
         }
 
     @app.get("/api/queue")
@@ -153,14 +194,24 @@ def create_app(workspace="work", token=None):
         category: str = Form("", max_length=100),
         limit: int = Form(20, ge=1, le=100),
     ):
-        image = decode(file.file.read(MAX_BYTES + 1))
-        with lock:
-            return search.query(encoder.images([image])[0], limit, category)
+        maximum = 5 * 1024 * 1024 if read_only else MAX_BYTES
+        blob = file.file.read(maximum + 1)
+        if len(blob) > maximum:
+            raise ValueError(
+                "Public demo photos must be at most 5 MB" if read_only else "Image exceeds 20 MB"
+            )
+        with decode(blob) as image:
+            if read_only and image.width * image.height > 4_000_000:
+                raise ValueError("Public demo photos must be at most 4 megapixels")
+            with lock:
+                return search.query(
+                    encoder.images([image])[0], min(limit, 20) if read_only else limit, category
+                )
 
     @app.get("/api/search/text")
     def text(q: str = Query(..., min_length=1, max_length=1000), limit: int = Query(20, ge=1, le=100)):
         with lock:
-            return search.query(encoder.texts([q])[0], limit)
+            return search.query(encoder.texts([q])[0], min(limit, 20) if read_only else limit)
 
     @app.get("/api/products/{pid}/similar")
     def similar(pid: str):
@@ -169,11 +220,18 @@ def create_app(workspace="work", token=None):
             return search.query(encoder.images([im.convert("RGB")])[0], exclude=pid)
 
     @app.post("/api/products/{pid}/infer")
-    def infer(pid: str):
+    def infer(pid: str, asset_id: str = Query("", max_length=64), snapshot: str = Query("", max_length=64)):
         p = store.product(pid)
-        with Image.open(store.asset_path(p["images"][0])) as im, lock:
+        if snapshot and snapshot != p["snapshot"]:
+            raise HTTPException(409, "This garment changed. Reload before requesting proposals.")
+        selected = asset_id or p["images"][0]
+        if selected not in p["images"]:
+            raise ValueError("The selected image does not belong to this garment's current snapshot")
+        with Image.open(store.asset_path(selected)) as im, lock:
             proposed = encoder.parts(im.convert("RGB"))
-        return {"snapshot": p["snapshot"], "image": p["images"][0], "proposals": proposed, "persisted": False}
+        if store.product(pid)["snapshot"] != p["snapshot"]:
+            raise HTTPException(409, "This garment changed during inference. Reload and try again.")
+        return {"snapshot": p["snapshot"], "image": selected, "proposals": proposed, "persisted": False}
 
     @app.patch("/api/products/{pid}/parts")
     def edit(pid: str, payload: PartEdit):

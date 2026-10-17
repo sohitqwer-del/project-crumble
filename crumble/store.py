@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS assets(id TEXT PRIMARY KEY, width INT, height INT, cr
 CREATE TABLE IF NOT EXISTS products(
  id TEXT PRIMARY KEY, snapshot TEXT NOT NULL, source_hash TEXT NOT NULL,
  title TEXT NOT NULL, brand TEXT NOT NULL, category TEXT NOT NULL, updated TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS products_category ON products(category,id);
 CREATE TABLE IF NOT EXISTS snapshots(
  id TEXT PRIMARY KEY, product_id TEXT NOT NULL, payload TEXT NOT NULL, created TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS snapshots_product ON snapshots(product_id,created);
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS models(id TEXT PRIMARY KEY, spec TEXT NOT NULL, dim I
 CREATE TABLE IF NOT EXISTS vectors(
  asset_id TEXT NOT NULL, model_id TEXT NOT NULL, v BLOB NOT NULL,
  PRIMARY KEY(asset_id,model_id));
+CREATE INDEX IF NOT EXISTS vectors_model ON vectors(model_id,asset_id);
 CREATE TABLE IF NOT EXISTS jobs(
  asset_id TEXT NOT NULL, model_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
  attempts INT NOT NULL DEFAULT 0, lease REAL, owner TEXT, error TEXT, updated TEXT,
@@ -109,6 +111,14 @@ class Store:
                 "brand=excluded.brand,category=excluded.category,updated=excluded.updated",
                 (pid, sid, source_hash, payload["title"], payload["brand"], payload["category"], stamp),
             )
+            previous_assets = {
+                r[0] for r in c.execute("SELECT asset_id FROM product_assets WHERE product_id=?", (pid,))
+            }
+            if previous_assets != set(payload["images"]):
+                c.execute(
+                    "INSERT INTO meta(key,value) VALUES('catalogue_revision','1') "
+                    "ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1"
+                )
             c.execute("DELETE FROM product_assets WHERE product_id=?", (pid,))
             c.executemany(
                 "INSERT INTO product_assets VALUES(?,?,?)",
@@ -148,6 +158,20 @@ class Store:
                 dict(r)
                 for r in c.execute(
                     "SELECT model_id,status,count(*) AS count FROM jobs GROUP BY model_id,status"
+                )
+            ]
+            counts["active_jobs"] = [
+                dict(r)
+                for r in c.execute(
+                    "SELECT j.model_id,j.status,count(*) AS count FROM jobs j WHERE EXISTS "
+                    "(SELECT 1 FROM product_assets p WHERE p.asset_id=j.asset_id) "
+                    "GROUP BY j.model_id,j.status"
+                )
+            ]
+            counts["categories"] = [
+                dict(r)
+                for r in c.execute(
+                    "SELECT category,count(*) AS count FROM products GROUP BY category ORDER BY category"
                 )
             ]
             return counts

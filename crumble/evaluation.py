@@ -16,6 +16,8 @@ def wilson(correct, total, z=1.959963984540054):
 
 def evaluate(records, split="test"):
     """Records need group_ids and photo_hashes so declared leakage can be checked."""
+    if split not in ("train", "validation", "test"):
+        raise ValueError("Invalid evaluation split")
     seen_queries, ownership = set(), {}
     for row in records:
         required = {
@@ -30,6 +32,13 @@ def evaluate(records, split="test"):
         }
         if not isinstance(row, dict) or not required.issubset(row):
             raise ValueError("Incomplete evaluation record")
+        if not isinstance(row["query_id"], str) or not row["query_id"]:
+            raise ValueError("A nonempty query ID is required")
+        if not isinstance(row["label_source"], str) or not row["label_source"].strip():
+            raise ValueError("A label evidence reference is required")
+        for flag in ("label_independent", "no_match_verified"):
+            if flag in row and type(row[flag]) is not bool:
+                raise ValueError(flag + " must be boolean")
         if row["query_id"] in seen_queries:
             raise ValueError("Duplicate query")
         seen_queries.add(row["query_id"])
@@ -51,6 +60,36 @@ def evaluate(records, split="test"):
     rows = [r for r in records if r["split"] == split]
     present = [r for r in rows if r["positive_ids"]]
     claims = [r for r in rows if r["claimed"]]
+    absent = [r for r in rows if not r["positive_ids"]]
+    supported_absent = [r for r in absent if r.get("label_independent") and r.get("no_match_verified")]
+    # Count connected identity/image components, not repeated photographs of one negative.
+    parents = {}
+
+    def find(key):
+        parents.setdefault(key, key)
+        trail = []
+        while parents[key] != key:
+            trail.append(key)
+            key = parents[key]
+        for child in trail:
+            parents[child] = key
+        return key
+
+    for row in supported_absent:
+        keys = [(kind, value) for kind in ("group_ids", "photo_hashes") for value in row[kind]]
+        first = find(keys[0])
+        for key in keys[1:]:
+            parents[find(key)] = first
+    negative_components = len({find(key) for key in parents})
+    absent_claims = sum(r["claimed"] for r in absent)
+    absent_interval = wilson(absent_claims, len(absent))
+    negative_support = len(supported_absent) >= 100 and negative_components >= 100
+    negative_gate = bool(
+        negative_support
+        and absent_interval
+        and absent_claims / len(absent) <= 0.02
+        and absent_interval[1] <= 0.05
+    )
 
     def hit(r, k):
         return bool(set(r["positive_ids"]) & set(r["ranked_ids"][:k]))
@@ -66,7 +105,19 @@ def evaluate(records, split="test"):
         "split": split,
         "queries": len(rows),
         "known_match_queries": len(present),
-        "no_match_queries": len(rows) - len(present),
+        "no_match_queries": len(absent),
+        "independently_supported_no_match_queries": len(supported_absent),
+        "independent_no_match_components": negative_components,
+        "no_match_false_claims": absent_claims,
+        "no_match_false_claim_rate": absent_claims / len(absent) if absent else None,
+        "no_match_false_claim_wilson95": absent_interval,
+        "no_match_support_sufficient": negative_support,
+        "evaluation_scope": {
+            "known_match_queries": len(present),
+            "no_match_queries": len(absent),
+            "minimum_supported_no_match_components": 100,
+            "negative_labels": "Require declared label_independent=true and no_match_verified=true, with evidence references",
+        },
         "top1": r1 / len(present) if present else None,
         "top10": r10 / len(present) if present else None,
         "top1_wilson95": wilson(r1, len(present)),
@@ -76,6 +127,7 @@ def evaluate(records, split="test"):
         "known_match_claim_coverage": coverage,
         "target98_passed": bool(
             present
+            and negative_gate
             and r1 / len(present) >= 0.98
             and precision is not None
             and precision >= 0.98
@@ -84,5 +136,7 @@ def evaluate(records, split="test"):
             and coverage >= 0.5
         ),
         "limits": "Intervals are query-level Wilson intervals. Use grouped bootstrap for correlated identities. "
-        "Leakage checks cover supplied aliases and hashes only; audit missing aliases independently.",
+        "Leakage checks cover supplied aliases and hashes only; audit missing aliases independently. "
+        "Independent and no-match flags are reviewer declarations; audit their evidence. "
+        "Passing this gate does not certify untested brands, galleries or deployment conditions.",
     }

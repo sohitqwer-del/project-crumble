@@ -2,6 +2,7 @@
 """Resumable embedding jobs with one workspace worker and bounded retries."""
 
 import time
+import uuid
 
 from PIL import Image
 
@@ -15,15 +16,24 @@ def enqueue(store, encoder, retry=False):
             "INSERT OR IGNORE INTO models VALUES(?,?,?)", (encoder.id, canonical(encoder.spec), encoder.dim)
         )
         c.execute(
-            """INSERT OR IGNORE INTO jobs(asset_id,model_id,updated)
-                     SELECT DISTINCT asset_id,?,? FROM product_assets""",
-            (encoder.id, now()),
+            "INSERT OR IGNORE INTO jobs(asset_id,model_id,updated) "
+            "SELECT DISTINCT p.asset_id,?,? FROM product_assets p WHERE NOT EXISTS "
+            "(SELECT 1 FROM jobs j WHERE j.asset_id=p.asset_id AND j.model_id=?)",
+            (encoder.id, now(), encoder.id),
         )
         if retry:
             c.execute(
-                "UPDATE jobs SET status='pending',attempts=0,error=NULL WHERE model_id=? AND status='error'",
-                (encoder.id,),
+                "UPDATE jobs SET status='pending',attempts=0,error=NULL,lease=NULL,owner=NULL,updated=? "
+                "WHERE model_id=? AND status='error'",
+                (now(), encoder.id),
             )
+
+
+def checked_vectors(encoder, images):
+    output = unit(encoder.images(images))
+    if output.shape != (len(images), encoder.dim):
+        raise ValueError("Encoder returned an unexpected shape")
+    return output
 
 
 def work(store, encoder, batch_size=8, max_jobs=None, retry=False):
@@ -32,12 +42,13 @@ def work(store, encoder, batch_size=8, max_jobs=None, retry=False):
     if max_jobs is not None and max_jobs < 1:
         raise ValueError("max_jobs must be positive")
     done, failed = 0, 0
+    owner = uuid.uuid4().hex
     with writer_lock(store.root / ".worker.lock"):
         enqueue(store, encoder, retry)
         with store.connect() as c:
             # Lock proves no previous worker remains. Interrupted attempts do not consume a retry.
             c.execute(
-                "UPDATE jobs SET status='pending',attempts=max(0,attempts-1) "
+                "UPDATE jobs SET status='pending',attempts=max(0,attempts-1),lease=NULL,owner=NULL "
                 "WHERE status='running' AND model_id=?",
                 (encoder.id,),
             )
@@ -46,16 +57,17 @@ def work(store, encoder, batch_size=8, max_jobs=None, retry=False):
             with store.connect() as c:
                 rows = c.execute(
                     "SELECT asset_id FROM jobs WHERE model_id=? AND status='pending' "
-                    "AND attempts<3 ORDER BY updated,asset_id LIMIT ?",
+                    "AND attempts<3 AND EXISTS (SELECT 1 FROM product_assets p WHERE p.asset_id=jobs.asset_id) "
+                    "ORDER BY updated,asset_id LIMIT ?",
                     (encoder.id, amount),
                 ).fetchall()
                 if not rows:
                     break
                 ids = [r[0] for r in rows]
                 c.executemany(
-                    "UPDATE jobs SET status='running',attempts=attempts+1,lease=?,updated=? "
+                    "UPDATE jobs SET status='running',attempts=attempts+1,lease=?,owner=?,updated=? "
                     "WHERE asset_id=? AND model_id=?",
-                    [(time.time(), now(), a, encoder.id) for a in ids],
+                    [(time.time(), owner, now(), a, encoder.id) for a in ids],
                 )
             prepared, errors, vectors = {}, {}, {}
             for aid in ids:
@@ -66,14 +78,12 @@ def work(store, encoder, batch_size=8, max_jobs=None, retry=False):
                     errors[aid] = exc
             if prepared:
                 try:
-                    output = unit(encoder.images(list(prepared.values())))
-                    if output.shape != (len(prepared), encoder.dim):
-                        raise ValueError("Encoder returned an unexpected shape")
+                    output = checked_vectors(encoder, list(prepared.values()))
                     vectors.update(zip(prepared, output))
                 except Exception:
                     for aid, image in prepared.items():
                         try:
-                            vectors[aid] = unit(encoder.images([image]))[0]
+                            vectors[aid] = checked_vectors(encoder, [image])[0]
                         except Exception as exc:
                             errors[aid] = exc
                 finally:
@@ -92,7 +102,12 @@ def work(store, encoder, batch_size=8, max_jobs=None, retry=False):
                             (aid, encoder.id, v.astype("<f4").tobytes()),
                         )
                         c.execute(
-                            "UPDATE jobs SET status='done',error=NULL,updated=? "
+                            "INSERT INTO meta(key,value) VALUES(?, '1') ON CONFLICT(key) "
+                            "DO UPDATE SET value=CAST(value AS INTEGER)+1",
+                            ("vector_revision:" + encoder.id,),
+                        )
+                        c.execute(
+                            "UPDATE jobs SET status='done',error=NULL,lease=NULL,owner=NULL,updated=? "
                             "WHERE asset_id=? AND model_id=?",
                             (now(), aid, encoder.id),
                         )
@@ -101,8 +116,14 @@ def work(store, encoder, batch_size=8, max_jobs=None, retry=False):
                     with store.connect() as c:
                         c.execute(
                             "UPDATE jobs SET status=CASE WHEN attempts<3 THEN 'pending' ELSE 'error' END,"
-                            "error=?,updated=? WHERE asset_id=? AND model_id=?",
+                            "error=?,lease=NULL,owner=NULL,updated=? WHERE asset_id=? AND model_id=?",
                             (type(exc).__name__ + ": " + str(exc)[:500], now(), aid, encoder.id),
                         )
                     failed += 1
-    return {"completed": done, "failed_attempts": failed}
+    from .retrieval import needs_build
+
+    return {
+        "completed": done,
+        "failed_attempts": failed,
+        "index_needs_rebuild": needs_build(store, encoder),
+    }

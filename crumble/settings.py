@@ -8,7 +8,7 @@ from .util import atomic, canonical
 def initialise(store, encoder="demo", device="cpu"):
     path = store.root / "settings.json"
     if path.exists():
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     value = {"encoder": encoder, "device": device, "schema": 1}
     atomic(path, canonical(value).encode())
     return value
@@ -16,4 +16,4 @@ def initialise(store, encoder="demo", device="cpu"):
 
 def library(store):
     path = store.root / "operations.json"
-    return validate_library(json.loads(path.read_text())) if path.exists() else EMPTY_LIBRARY
+    return validate_library(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else EMPTY_LIBRARY

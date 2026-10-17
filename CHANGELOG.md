@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0a1
+
+- Native Windows setup, cross-process locks and a separate local GitHub project.
+- Public Crumble website, browser comparison demo and local setup guides.
+- Refined workbench branding, responsive states, crop and review interactions.
+- Category-first retrieval, consistent index generations and resumable queue pages.
+- Index freshness tracking and stronger worker recovery.
+- Expiring signed sessions, Unicode-safe authentication and restricted demo mode.
+- Selected-image inference and explicit category evidence/conflicts.
+- No-match support requirements in the numerical accuracy gate.
+
 ## 0.1.0a1
 
 Initial standalone Project Crumble alpha.

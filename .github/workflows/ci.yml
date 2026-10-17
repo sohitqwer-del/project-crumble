@@ -4,10 +4,14 @@ permissions:
   contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: ['3.11', '3.12', '3.14']
+        include:
+          - {os: ubuntu-latest, python: '3.11'}
+          - {os: ubuntu-latest, python: '3.12'}
+          - {os: ubuntu-latest, python: '3.14'}
+          - {os: windows-latest, python: '3.11'}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -19,7 +23,9 @@ jobs:
       - run: ruff format --check crumble tests
       - run: python scripts/release_check.py
       - run: python -m build
-      - run: crumble --workspace /tmp/crumble-smoke demo
+      - run: crumble --workspace work/ci-smoke demo
+      - run: node scripts/build-website.mjs
+      - run: python scripts/check_website.py
   container:
     runs-on: ubuntu-latest
     steps:

@@ -19,13 +19,18 @@ Each record includes:
   "positive_ids": ["known-positive-listing"],
   "ranked_ids": ["retrieved-listing-1", "retrieved-listing-2"],
   "claimed": false,
-  "label_source": "Independent reviewer or verified product identity reference"
+  "label_source": "Independent reviewer or verified product identity reference",
+  "label_independent": true,
+  "no_match_verified": false
 }
 ~~~
 
 Use an empty positive_ids list for a true no-match query. Deduplicate ranked
 results. Include all known alias component IDs and reused image hashes.
 The evaluator can reject declared leakage; it cannot discover omitted aliases.
+For independently checked no-match cases, set label_independent and
+no_match_verified to true and cite the review evidence in label_source.
+These are declarations which need auditing, not proof produced by the evaluator.
 
 claimed is a frozen decision from the system being measured. Crumble's default
 search does not claim confident identity. Choose any threshold on validation
@@ -33,7 +38,9 @@ only, record it, then apply it unchanged to test.
 
 The numerical 98% gate requires observed top-1 and claim precision at least .98,
 at least 100 claims, claim precision Wilson lower 95% bound at least .95, and
-known-match claim coverage at least .5. Passing this arithmetic gate alone does
+known-match claim coverage at least .5. It also requires at least 100 independent
+no-match identity/image components, a no-match false-claim rate at most .02,
+and its Wilson upper 95% bound at most .05. Passing this arithmetic gate alone does
 not certify a dataset, independent labels, factory use or a production model.
 
 Wilson intervals assume independent queries. Use a grouped bootstrap when

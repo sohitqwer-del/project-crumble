@@ -1,5 +1,24 @@
 # Alpha release checks
 
+## 0.2.0a1 — local Windows and website
+
+Checked on 17 October 2026 with native Windows Python 3.11:
+
+- 77 tests passed, with one Linux-only file-descriptor test skipped.
+- Spawned-process locking, signed session expiry, Unicode credentials,
+  category-first retrieval, job recovery and stale evidence checks passed.
+- The local application passed photo search, crop, saved review, history and
+  long-filename layout checks at 1280, 390 and 320 pixels.
+- The four-page website passed those three widths, local links/assets and
+  17 interactive checks including signed SMV deltas and browser-only exports.
+- Browser evidence is generated locally; no private catalogue data was used.
+
+The CI matrix includes native Windows and Linux tests, website build checks
+and the Linux container build. See the repository's Actions tab for results
+on the exact release commit.
+
+## 0.1.0a1 — original Linux baseline
+
 Checked on 17 October 2026, on Linux.
 
 | Check | Result |

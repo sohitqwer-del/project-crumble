@@ -2,25 +2,30 @@ import {$, el, api, json, run, image, message, state} from "./ui.js";
 
 export async function openProduct(product) {
   const p = await api("/api/products/" + encodeURIComponent(product.id));
-  const box = $("#product-detail"); box.replaceChildren(el("p", p.brand, "eyebrow"), el("h2", p.title));
+  const box = $("#product-detail");const title=el("h2",p.title);title.id="product-title";box.replaceChildren(el("p",p.brand||"Your collection","eyebrow"),title);
+  let activeAsset=p.images[0];
+  const readOnly=Boolean(state.status?.read_only);
   const photo = image(p.images[0], p.title); photo.className = "detail-photo"; box.append(photo);
   const views = el("div", null, "card-actions");
-  p.images.forEach((aid, i) => {const b = el("button", "View " + (i + 1)); b.onclick = () => photo.src = "/assets/" + aid; views.append(b);});
+  p.images.forEach((aid,i)=>{const b=el("button","View "+(i+1));b.setAttribute("aria-pressed",String(i===0));b.onclick=()=>{activeAsset=aid;photo.src="/assets/"+encodeURIComponent(aid);views.querySelectorAll("button").forEach(n=>n.setAttribute("aria-pressed",String(n===b)));evidence.textContent="Viewing image "+(i+1)+" of "+p.images.length+". Part suggestions use this image.";};views.append(b);});
+  const evidence=el("p","Viewing image 1 of "+p.images.length+". Part suggestions use this image.","muted");box.append(evidence);
   box.append(views, el("p", "Image rights: " + p.rights, "muted"));
-  const reviewer = el("input"); reviewer.placeholder = "Your name"; reviewer.value = $("#reviewer").value;
+  const reviewer = el("input"); reviewer.placeholder = "Your name"; reviewer.autocomplete="name";reviewer.maxLength=100; reviewer.value = $("#reviewer").value;
   const label = el("label", "Reviewer name (required for corrections)"); label.append(reviewer); box.append(label);
-  const infer = el("button", "Suggest visible parts");
+  const infer = el("button",readOnly?"Part suggestions available in your workspace":"Suggest visible parts");infer.disabled=readOnly;
   infer.onclick = run(async () => {
-    const data = await api("/api/products/" + p.id + "/infer", {method:"POST"});
+    const requestedAsset=activeAsset,requestedSnapshot=p.snapshot;
+    const data = await api("/api/products/" + encodeURIComponent(p.id) + "/infer?asset_id="+encodeURIComponent(activeAsset)+"&snapshot="+encodeURIComponent(p.snapshot), {method:"POST"});
+    if(activeAsset!==requestedAsset||p.snapshot!==requestedSnapshot){message("The image or evidence changed while suggestions loaded. Request suggestions again for the current view.");return;}
     for (const [field, proposal] of Object.entries(data.proposals)) {
       const row = box.querySelector('[data-field="' + field + '"]');
-      if (row && row.querySelector("select").value !== "verified") {
+      if (row && row.dataset.dirty!=="true" && row.querySelector("select").value !== "verified") {
         row.querySelector("select").value = proposal.state;
         row.querySelector("input").value = proposal.values.join(", ");
         row.dataset.source = "visual:" + proposal.source + ";image:" + data.image;
       }
     }
-    message("Visual proposals loaded. Check each field and save corrections separately.");
+    message("Proposals loaded for the selected image. Your unsaved edits and verified fields were preserved. Review and save each suggestion.");
   });
   box.append(infer, el("p", "Unknown is different from a confirmed absence. Enter 'none' only when verified.", "muted"));
   for (const [key, f] of Object.entries(p.structure.fields)) {
@@ -31,29 +36,37 @@ export async function openProduct(product) {
     ["unknown", "not_visible", "stated", "inferred", "verified", "conflicting"].forEach(v => {
       const option = el("option", v.replaceAll("_", " ")); option.value = v; select.append(option);
     }); select.value = f.state;
-    values.oninput = () => { delete row.dataset.source; };
-    const save = el("button", "Save part");
+    const dirty=()=>{delete row.dataset.source;row.dataset.dirty="true";save.textContent="Save change";};
+    values.oninput=dirty;select.onchange=dirty;
+    const save = el("button",readOnly?"Preview":"Save part");save.disabled=readOnly;values.readOnly=readOnly;select.disabled=readOnly;
     save.onclick = run(async () => {
       if (!reviewer.value.trim()) throw new Error("Enter the reviewer name first.");
       const payload = {snapshot:p.snapshot, field:key, reviewer:reviewer.value,
         claim:{state:select.value, values:values.value.split(",").map(x=>x.trim()).filter(Boolean),
           source:row.dataset.source || "reviewer correction"}, note:""};
       const result = await api("/api/products/" + p.id + "/parts", json("PATCH", payload));
-      p.snapshot = result.snapshot; $("#reviewer").value = reviewer.value;
+      p.snapshot = result.snapshot; $("#reviewer").value = reviewer.value;delete row.dataset.dirty;save.textContent="Saved ✓";
       message(f.label + " saved with its evidence snapshot.");
     });
     row.append(values, select, save); box.append(row);
   }
-  const history = el("button", "Show observation history");
-  history.onclick = run(async () => {
-    const h = await api("/api/products/" + p.id + "/history");
-    const list = el("div");
-    list.append(el("p", h.date_meaning, "muted"));
-    h.snapshots.forEach(s => list.append(el("p", (s.observed_at || "No source date supplied") + " / " + s.title)));
-    list.append(el("p", h.events.length + " recorded corrections / " + h.reviewed_relationships.length + " relationship reviews"));
+  const historySection=el("section",null,"history-section");
+  historySection.append(el("p","EVIDENCE TRAIL","eyebrow"),el("h3","Observation & review history"));
+  const history=el("button","Load evidence history");
+  history.onclick=run(async()=>{
+    const h=await api("/api/products/"+encodeURIComponent(p.id)+"/history");
+    const list=el("div",null,"timeline");
+    list.append(el("p",h.date_meaning,"muted"));
+    function entry(label,detail,date){
+      const row=el("article",null,"timeline-item");row.append(el("h4",label));
+      if(detail)row.append(el("p",detail));
+      if(date){const time=el("time",date);time.dateTime=date;row.append(time);}list.append(row);
+    }
+    h.snapshots.forEach((s,i)=>entry("Evidence snapshot "+(i+1),s.title,s.observed_at||"Source observation date not supplied"));
+    h.events.forEach(e=>entry(e.field?e.field.replaceAll("_"," ")+" corrected":"Evidence updated",(e.reviewer||"Workspace")+" · "+(e.claim?.values?.join(", ")||e.note||e.kind||"Recorded event"),e.created));
+    h.reviewed_relationships.forEach(r=>entry("Relationship review",(r.relation||"unsure").replaceAll("_"," ")+" · "+(r.reviewer||"Workspace")+(r.note?" · "+r.note:""),r.created));
     history.replaceWith(list);
-  });
-  box.append(history);
+  });historySection.append(history);box.append(historySection);
   if (!$("#product-dialog").open) $("#product-dialog").showModal();
 }
 export async function openComparison(a, b) {
@@ -64,7 +77,7 @@ export async function openComparison(a, b) {
   const products = $("#compare-products"); products.replaceChildren();
   [data.a, data.b].forEach((p, i) => {
     const n = el("div", null, "panel"); const im = image(p.images[0], p.title); im.className="detail-photo";
-    n.append(el("p", i ? "AFTER / COMPARISON" : "BEFORE / REFERENCE", "eyebrow"), im, el("h3", p.title));
+    n.append(el("p",i?"B / COMPARISON":"A / REFERENCE","eyebrow"),im,el("p",p.brand||"Your collection","eyebrow"),el("h3",p.title));
     products.append(n);
   });
   const rows=$("#compare-rows"), changed=$("#changed-fields"); rows.replaceChildren(); changed.replaceChildren();
@@ -87,8 +100,8 @@ export async function openComparison(a, b) {
   if(s.unmapped_changes.length) smv.append(el("p","Unmapped changes: "+s.unmapped_changes.map(x=>x.field).join(", "),"warning"));
   smv.append(el("p",s.unknown_fields.length+" fields need more evidence. No new total garment SMV is calculated.","muted"));
   $("#relation").value=""; $("#review-note").value=""; $("#smv-decision").value="not_reviewed";
-  $("#review-saved").textContent=data.reviews.length+" prior reviews for this pair.";
-  $("#comparison").scrollIntoView({behavior:"instant"});
+  $("#review-saved").textContent=state.status?.read_only?"Public demo preview. Run your own workspace to save reviews.":data.reviews.length+" prior reviews for this pair.";
+  $("#comparison").scrollIntoView({behavior:"instant"});$("#comparison").focus({preventScroll:true});
 }
 export function bindReview(){
   $("#relation").onchange=()=>{if($("#relation").value==="same_visible_design") document.querySelectorAll("#changed-fields input").forEach(x=>x.checked=false);};
@@ -99,6 +112,7 @@ export function bindReview(){
       changed:[...document.querySelectorAll("#changed-fields input:checked")].map(x=>x.value),
       smv_decision:$("#smv-decision").value,smv_library_hash:d.smv.library_hash};
     await api("/api/reviews",json("POST",body)); $("#review-saved").textContent="Review saved. Evidence and operation library recorded."; message("Review saved.");
+    document.dispatchEvent(new CustomEvent("workspace-changed"));
   });
 }
 

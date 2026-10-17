@@ -1,8 +1,11 @@
 # Deployment
 
-Python 3.11+ on Linux or macOS is supported by the source. Release checks use
-Linux; macOS has not been tested. Windows users should use WSL2 or the container.
-The worker and index builder use POSIX file locks.
+Python 3.11+ is supported on Windows, Linux and macOS. Native Windows and Linux
+have been checked; macOS remains untested. The worker and index builder use
+OS-owned locks on both Windows and POSIX systems.
+
+For Windows setup, run scripts/dev.ps1 from PowerShell. The application lives in
+its own GitHub checkout and does not require the training server.
 
 ## Local use
 
@@ -43,9 +46,17 @@ A non-loopback --host requires CRUMBLE_TOKEN. Put the service behind an HTTPS
 reverse proxy and firewall. Set CRUMBLE_ALLOWED_HOSTS to the exact hostname.
 Do not use a wildcard on the public internet.
 
-The app does not trust forwarded headers by default. For TLS termination, use
-bearer-token API clients or review proxy trust and secure-cookie configuration
-before remote browser use. Do not expose an unauthenticated instance directly.
+The app does not trust forwarded headers by default. Set CRUMBLE_COOKIE_SECURE=true
+when HTTPS terminates at a trusted proxy, so browser sessions require HTTPS.
+The session signature expires after eight hours on the server and is invalidated
+by token rotation. Do not expose an unauthenticated writable instance directly.
+
+CRUMBLE_READ_ONLY=true provides a restricted public demonstration mode: persistent
+uploads, part corrections, saved reviews, model inference and exports are blocked.
+Photo queries are temporary, limited to 5 MB / 4 megapixels and 20 results.
+Read-only search is limited to 30 requests per minute across one process.
+The hosted website's browser demo is separate and uses original illustrations;
+it does not contact a private catalogue or the training server.
 
 This alpha is one organisation per workspace, one embedding worker, and a
 shared read/write access token. Reviewer names are attribution fields, not
@@ -69,8 +80,9 @@ been load-tested at one million images. The private precursor's catalogue size
 is not a scale guarantee for this standalone application.
 
 Monitor disk capacity, query latency, failed jobs and index age. Check approximate
-HNSW recall against exact search on your catalogue. Category filters operate on
-the candidate shortlist; a response flags possibly limited results.
+HNSW recall against exact search on your catalogue. Category searches score only
+eligible image views exactly, even when the global index is HNSW. Unfiltered HNSW
+search remains approximate and the response reports the effective backend.
 
 PostgreSQL, object storage, managed vector services and distributed workers are
 future backends. The current code is suitable for measured pilots, not an

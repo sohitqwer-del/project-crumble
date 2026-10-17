@@ -9,7 +9,11 @@ from .evaluation import evaluate
 def main():
     if len(sys.argv) != 2:
         raise SystemExit("Usage: python -m crumble.evaluate_cli judged-results.jsonl")
-    records = [json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines() if line.strip()]
+    records = [
+        json.loads(line)
+        for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     print(json.dumps(evaluate(records), indent=2, allow_nan=False))
 
 

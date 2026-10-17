@@ -22,4 +22,10 @@ data/
 .env
 .env.*
 !.env.example
+!website/dist/
+!website/dist/**
+.sites-runtime/
+.sites-checkout/
+out/
+.crumble/
 

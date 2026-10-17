@@ -9,6 +9,8 @@ services:
     environment:
       CRUMBLE_TOKEN: ${CRUMBLE_TOKEN:?Set CRUMBLE_TOKEN in your local .env file}
       CRUMBLE_ALLOWED_HOSTS: ${CRUMBLE_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CRUMBLE_READ_ONLY: ${CRUMBLE_READ_ONLY:-false}
+      CRUMBLE_COOKIE_SECURE: ${CRUMBLE_COOKIE_SECURE:-false}
     volumes:
       - crumble-data:/data
       - crumble-models:/models

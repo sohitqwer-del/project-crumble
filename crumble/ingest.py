@@ -48,6 +48,79 @@ def asset(store, data):
     return h
 
 
+def category_value(value):
+    """Canonicalize explicit garment words only; custom category names stay explicit."""
+    text = " ".join(value.casefold().replace("-", " ").split())
+    aliases = {
+        "shirt": "top",
+        "shirts": "top",
+        "blouse": "top",
+        "blouses": "top",
+        "tops": "top",
+        "t shirt": "top",
+        "t shirts": "top",
+        "tee": "top",
+        "camisole": "top",
+        "dress": "dress",
+        "dresses": "dress",
+        "gown": "dress",
+        "shirt dress": "dress",
+        "pants": "trousers",
+        "trouser": "trousers",
+        "jeans": "trousers",
+        "skirt": "skirt",
+        "skirts": "skirt",
+        "shorts": "shorts",
+        "sweater": "knitwear",
+        "sweaters": "knitwear",
+        "cardigan": "knitwear",
+        "jumper": "knitwear",
+        "pullover": "knitwear",
+        "jacket": "outerwear",
+        "coat": "outerwear",
+        "blazer": "outerwear",
+        "parka": "outerwear",
+        "gilet": "outerwear",
+        "jumpsuit": "jumpsuit",
+        "playsuit": "jumpsuit",
+        "romper": "jumpsuit",
+    }
+    return aliases.get(text, text)
+
+
+def merge_category(structure, declared, claim):
+    field = structure["fields"]["category"]
+    evidence = list(field["evidence"])
+    assertions = []
+    if field["state"] in ("stated", "verified", "inferred", "conflicting"):
+        assertions.extend(category_value(v) for v in field["values"])
+    states = [field["state"]] if assertions else []
+    if declared:
+        value = category_value(declared)
+        assertions.append(value)
+        states.append("stated")
+        evidence.append(
+            {"source": "metadata.category", "quote": declared, "values": [value], "state": "stated"}
+        )
+    if claim:
+        values = [category_value(v) for v in claim["values"]]
+        evidence.append(
+            {"source": claim["source"], "note": claim["note"], "values": values, "state": claim["state"]}
+        )
+        if claim["state"] in ("stated", "verified", "inferred", "conflicting"):
+            assertions.extend(values)
+            states.append(claim["state"])
+    values = sorted(set(assertions))
+    if len(values) > 1 or "conflicting" in states:
+        state = "conflicting"
+    elif values:
+        state = "verified" if "verified" in states else "stated" if "stated" in states else "inferred"
+    else:
+        state = claim["state"] if claim else "unknown"
+    field.update(state=state, values=values, evidence=evidence)
+    return category_value(declared) if declared else (values[0] if len(values) == 1 else "")
+
+
 def ingest(store, metadata, images):
     data = ProductInput.model_validate(metadata).model_dump()
     if not 1 <= len(images) <= 8:
@@ -55,7 +128,11 @@ def ingest(store, metadata, images):
     ids = list(dict.fromkeys(asset(store, x) for x in images))
     source_hash = digest({"metadata": data, "images": ids})
     structure = extract(data["title"], data["id"])
-    for field, claim in data.pop("parts").items():
+    parts = data.pop("parts")
+    data["category"] = merge_category(structure, data["category"], parts.get("category"))
+    for field, claim in parts.items():
+        if field == "category":
+            continue
         structure["fields"][field].update(
             state=claim["state"],
             values=claim["values"],

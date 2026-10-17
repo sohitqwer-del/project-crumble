@@ -36,6 +36,7 @@ def main(argv=None):
     index.add_argument("--backend", choices=["exact", "hnsw"], default="exact")
     queue = sub.add_parser("queue")
     queue.add_argument("--limit", type=int, default=100)
+    queue.add_argument("--after", default="", help="Resume after the previous page's next_after product ID")
     lib = sub.add_parser("operations", help="Validate and install a versioned SMV operation library")
     lib.add_argument("path")
     sub.add_parser("status")
@@ -65,7 +66,7 @@ def main(argv=None):
         if args.command == "operations":
             from .smv import validate_library
 
-            data = validate_library(json.loads(Path(args.path).read_text()))
+            data = validate_library(json.loads(Path(args.path).read_text(encoding="utf-8")))
             atomic(store.root / "operations.json", canonical(data).encode())
             print(json.dumps({"installed": data["version"]}))
             return
@@ -96,7 +97,7 @@ def main(argv=None):
         elif args.command == "worker":
             while True:
                 result = work(store, encoder, args.batch_size, args.max_jobs, args.retry)
-                if result["completed"]:
+                if result["completed"] or result.get("index_needs_rebuild"):
                     result["index"] = build(store, encoder, args.index_backend)
                 print(json.dumps(result), flush=True)
                 if not args.watch:
@@ -110,7 +111,7 @@ def main(argv=None):
                 raise ValueError("limit must be between 1 and 100000")
             from .queue import populate
 
-            print(json.dumps(populate(store, Search(store, encoder), args.limit)))
+            print(json.dumps(populate(store, Search(store, encoder), args.limit, after=args.after)))
     except (ValueError, OSError, ImportError) as exc:
         print(type(exc).__name__ + ": " + str(exc), file=sys.stderr)
         raise SystemExit(2) from None

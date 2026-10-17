@@ -42,5 +42,15 @@ def test_no_claims_and_empty_inputs_do_not_pass():
 
 
 def test_declared_threshold_gate_requires_sufficient_support():
-    assert evaluate([row(i) for i in range(100)])["target98_passed"] is True
+    positives = [row(i) for i in range(100)]
+    assert evaluate(positives)["target98_passed"] is False
+    negatives = []
+    for i in range(100, 200):
+        negative = row(i, positive=False, claimed=False)
+        negative.update(label_independent=True, no_match_verified=True)
+        negatives.append(negative)
+    assert evaluate(positives + negatives)["target98_passed"] is True
+    for negative in negatives:
+        negative["group_ids"] = ["one-shared-negative"]
+    assert evaluate(positives + negatives)["target98_passed"] is False
     assert evaluate([row(i) for i in range(10)])["target98_passed"] is False

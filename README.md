@@ -3,11 +3,28 @@
 An open-source workspace for garment photos, design comparisons, human review and
 suggested changes in Standard Minute Value (SMV).
 
-Status: **0.1.0a1, working alpha**. This release is for local use and retailer pilots.
+[Website and browser demo](https://project-crumble.edp395764.chatgpt.site) ·
+[Setup documentation](https://project-crumble.edp395764.chatgpt.site/docs.html)
+
+Status: **0.2.0a1, working alpha**. This release is for local use and retailer pilots.
 It is not a validated factory time system or a managed enterprise service.
 No 98% accuracy claim is made.
 
-## Run the complete demo
+## Run on Windows
+
+Clone the repository, then run this from PowerShell in the project directory:
+
+~~~powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+~~~
+
+This creates a project-local virtual environment, installs dependencies, prepares
+the original sample collection once, and starts http://127.0.0.1:8765.
+After setup, use the same command with -SkipInstall for a faster start.
+The application, website and data workspace can run on your own computer.
+Remote GPU and training data access are optional; see [training setup](docs/TRAINING_SETUP.md).
+
+## Run on Linux or macOS
 
 Python 3.11+ on Linux or macOS:
 
@@ -61,6 +78,8 @@ built-in scraper. Supply garments and images you have permission to use.
 - Side-by-side design changes, part corrections, review queues and JSONL export.
 - Immutable snapshots, stale-review rejection and observed style relationships.
 - Operation-based SMV delta ranges with source references and reviewer decisions.
+- Native Windows operation with cross-process worker locks.
+- A public project website and interactive browser comparison demo.
 
 A similar image is not proof of a copied design. Observation dates do not establish
 which brand designed an item first. Whole outfits can hide which garment matched.

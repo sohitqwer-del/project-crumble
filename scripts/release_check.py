@@ -20,7 +20,7 @@ for name in filter(None,paths):
     if p.is_symlink() or not p.is_file():
         issues.append({"file":name,"reason":"symlink or missing file"})
         continue
-    if any(x in name.split("/") for x in ("local","service","work","weights",".venv")):
+    if any(x in name.split("/") for x in ("local","service","work","weights",".venv",".crumble")):
         issues.append({"file":name,"reason":"private/runtime directory"})
     if p.suffix in (".sqlite",".db",".npy",".npz",".pt",".pth",".safetensors") or ".bak-" in name:
         issues.append({"file":name,"reason":"data/weights/backup artifact"})

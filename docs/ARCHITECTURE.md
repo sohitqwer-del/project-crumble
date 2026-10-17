@@ -54,13 +54,17 @@ the Python search interface.
 
 Exact search reads memory-mapped vectors in blocks of 32,768 and retains the
 highest-scoring candidates. HNSW is optional and approximate. Its candidates are
-rescored using the stored float32 vectors. Category filtering is applied to the
-candidate pool; a response flags when filtering may have limited results.
+rescored using the stored float32 vectors. Category searches filter eligible
+views before exact scoring; unfiltered HNSW remains approximate. The response
+records the effective backend. Each query holds an immutable generation snapshot
+so a concurrent reload cannot mix vector and image-ID arrays.
 
 Index builds use a consistent database read transaction. They publish a new
 generation with checksums, then atomically change a small pointer. A failed or
 empty build preserves the previous generation. A reader holds its current files
-until the next request detects a new generation. Old generations stay on disk;
+until the next request detects a new generation. Source revision tracking also
+rebuilds when already-embedded images are reassociated or source data changes.
+Old generations stay on disk;
 archive or remove unused generations during planned maintenance.
 
 ## Parts and style history
