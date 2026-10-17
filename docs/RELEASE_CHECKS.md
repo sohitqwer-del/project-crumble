@@ -27,7 +27,9 @@ The FashionSigLIP smoke check used a synthetic illustration. Retrieval quality,
 part correctness and factory times have not been independently benchmarked in
 this public package.
 
-Docker configuration is included. Docker was not available on the release
-server, so the container build remains a CI check after publication. macOS,
-CUDA, enterprise load, SSO and remote proxy deployments were not verified.
+Post-publication GitHub CI passed on Python 3.11, 3.12 and 3.14, including the
+Docker image build and a demo run inside the container. Evidence:
+https://github.com/sohitqwer-del/project-crumble/actions/runs/39042211624
+
+macOS, CUDA, enterprise load, SSO and remote proxy deployments were not verified.
 

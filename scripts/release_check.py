@@ -24,6 +24,8 @@ for name in filter(None,paths):
         issues.append({"file":name,"reason":"private/runtime directory"})
     if p.suffix in (".sqlite",".db",".npy",".npz",".pt",".pth",".safetensors") or ".bak-" in name:
         issues.append({"file":name,"reason":"data/weights/backup artifact"})
+    if p.suffix == ".sh" and b"\r" in p.read_bytes():
+        issues.append({"file":name,"reason":"shell scripts require LF line endings"})
     if name == ".env" or p.stat().st_size > 2_000_000:
         issues.append({"file":name,"reason":"secret config or unexpected large file"})
     if name == "scripts/release_check.py":
