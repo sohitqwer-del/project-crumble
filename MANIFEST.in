@@ -1,0 +1,6 @@
+include LICENSE NOTICE README.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md MODEL_CARD.md THIRD_PARTY.md CHANGELOG.md
+recursive-include docs *.md *.json
+recursive-include tests *.py
+recursive-include scripts *.py
+recursive-exclude * *.bak-*
+

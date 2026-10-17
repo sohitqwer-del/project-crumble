@@ -1,0 +1,10 @@
+Project Crumble
+Copyright 2026 Project Crumble contributors
+
+Licensed under the Apache License, Version 2.0.
+The structure and wording normalisation modules derive from the Apache-2.0
+Garment Match engine developed in this project. They have been adapted for
+a self-contained release. No third-party model weights or retailer data are
+included. Dependencies and optional models retain their own terms; see
+THIRD_PARTY.md.
+

@@ -1,0 +1,76 @@
+{
+  "version": "crumble-demo/1",
+  "scope": "Illustrative woven sample; assumed two sleeves and two patch pockets. Not a factory standard.",
+  "illustrative": true,
+  "operations": [
+    {
+      "id": "hem-short",
+      "label": "Finish a short sleeve hem",
+      "low": 0.25,
+      "high": 0.35,
+      "source": "Invented demo value",
+      "machine": "Example lockstitch"
+    },
+    {
+      "id": "cuff-long",
+      "label": "Construct and attach a long sleeve cuff",
+      "low": 0.8,
+      "high": 1.1,
+      "source": "Invented demo value",
+      "machine": "Example lockstitch"
+    },
+    {
+      "id": "pocket-patch",
+      "label": "Prepare and attach a patch pocket",
+      "low": 0.6,
+      "high": 0.9,
+      "source": "Invented demo value",
+      "machine": "Example lockstitch"
+    }
+  ],
+  "rules": [
+    {
+      "field": "sleeve_length",
+      "values": [
+        "short"
+      ],
+      "operations": [
+        {
+          "id": "hem-short",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "field": "sleeve_length",
+      "values": [
+        "long"
+      ],
+      "operations": [
+        {
+          "id": "cuff-long",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "field": "pockets",
+      "values": [
+        "none"
+      ],
+      "operations": []
+    },
+    {
+      "field": "pockets",
+      "values": [
+        "patch"
+      ],
+      "operations": [
+        {
+          "id": "pocket-patch",
+          "quantity": 2
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        EXTRAS: ${CRUMBLE_EXTRAS:-}
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      CRUMBLE_TOKEN: ${CRUMBLE_TOKEN:?Set CRUMBLE_TOKEN in your local .env file}
+      CRUMBLE_ALLOWED_HOSTS: ${CRUMBLE_ALLOWED_HOSTS:-localhost,127.0.0.1}
+    volumes:
+      - crumble-data:/data
+      - crumble-models:/models
+    restart: unless-stopped
+  worker:
+    build:
+      context: .
+      args:
+        EXTRAS: ${CRUMBLE_EXTRAS:-}
+    command: ["crumble", "--workspace", "/data", "worker", "--watch", "--max-jobs", "1000"]
+    volumes:
+      - crumble-data:/data
+      - crumble-models:/models
+    restart: unless-stopped
+volumes:
+  crumble-data:
+  crumble-models:
