@@ -1,5 +1,16 @@
 # Third-party components
 
+## Website typography and imagery
+
+The editorial website self-hosts unmodified Manrope from the Google Fonts
+repository under SIL Open Font License 1.1. Its copyright notice and full licence
+are included at website/dist/assets/fonts/OFL.txt.
+
+The sample collection and editorial imagery were created using the built-in
+image-generation tool. They depict fictional sample garments and a fictional
+editorial model. They are not retailer photographs or model-inference results.
+Prompts and source notes are in website/ASSETS.md.
+
 Project Crumble source is Apache-2.0. This does not relicense dependencies,
 retailer images, factory standards, datasets or separately downloaded models.
 

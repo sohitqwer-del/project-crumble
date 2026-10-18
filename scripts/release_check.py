@@ -33,7 +33,7 @@ for name in filter(None,paths):
     try:
         text = p.read_text(encoding="utf-8")
     except UnicodeDecodeError:
-        if p.suffix not in (".png",".jpg",".jpeg",".webp",".ico"):
+        if p.suffix not in (".png",".jpg",".jpeg",".webp",".ico",".ttf",".woff2"):
             issues.append({"file":name,"reason":"unexpected binary"})
         continue
     for pattern, reason in patterns:

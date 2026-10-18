@@ -6,8 +6,8 @@ if(menuButton&&menu){
   menuButton.addEventListener("click",()=>{const open=menuButton.getAttribute("aria-expanded")!=="true";menu.classList.toggle("open",open);menuButton.setAttribute("aria-expanded",String(open));});
   menu.addEventListener("click",e=>{if(e.target.closest("a"))closeMenu();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&menu.classList.contains("open")){closeMenu();menuButton.focus();}});
-  document.addEventListener("click",e=>{if(!e.target.closest(".site-header"))closeMenu();});
-  matchMedia("(min-width:601px)").addEventListener("change",closeMenu);
+  document.addEventListener("click",e=>{if(!e.target.closest(".site-header,.editorial-header"))closeMenu();});
+  matchMedia("(min-width:781px)").addEventListener("change",closeMenu);
 }
 document.querySelectorAll(".copy-button").forEach(button=>button.addEventListener("click",async()=>{
   const code=button.closest(".code-block").querySelector("code");
