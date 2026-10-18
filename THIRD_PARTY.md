@@ -6,10 +6,13 @@ The editorial website self-hosts unmodified Manrope from the Google Fonts
 repository under SIL Open Font License 1.1. Its copyright notice and full licence
 are included at website/dist/assets/fonts/OFL.txt.
 
-The sample collection and editorial imagery were created using the built-in
-image-generation tool. They depict fictional sample garments and a fictional
-editorial model. They are not retailer photographs or model-inference results.
-Prompts and source notes are in website/ASSETS.md.
+The editorial website includes four real garment photographs published by
+Reistor on Unsplash under the Unsplash License: https://unsplash.com/license.
+The photos are not Apache-2.0 assets. Source pages, camera metadata, processing
+notes and hashes are recorded in website/ASSETS.md and the public manifest at
+website/dist/assets/collection/sources.json. Reistor is credited as a source,
+not a customer or sponsor. Photo observations and hypothetical operation-time
+assumptions are recorded separately. No generated photos remain in the website.
 
 Project Crumble source is Apache-2.0. This does not relicense dependencies,
 retailer images, factory standards, datasets or separately downloaded models.
@@ -49,8 +52,9 @@ SAM or other private precursor dependency is required by this release.
 
 The demo generator is original project code under Apache-2.0 and creates
 synthetic garment illustrations. The example times are invented and labelled
-illustrative. No retailer photography, licensed print, private review or factory
-time-study library is included.
+illustrative. The website separately includes the licensed Reistor photographs
+listed above. No private retailer dataset, private review or factory time-study
+library is included.
 
 A self-hosted deployment must obtain rights to its own images and operation
 libraries. Rights metadata records an importer's statement; it does not establish

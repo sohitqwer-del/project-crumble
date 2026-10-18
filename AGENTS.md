@@ -17,8 +17,8 @@ Keep image/model/index identity and source snapshots consistent. Unknown parts
 are not absent parts. Inferred claims are proposals. SMV suggestions need
 explicit operation times and factory review. Do not invent accuracy claims.
 
-The website lives in website/dist. Its public demo uses original project
-illustrations and explicitly illustrative operation times. Keep its Crumble
+The website lives in website/dist. Its public website uses licensed real garment photographs with source credits
+and explicitly illustrative operation times, separate from photo observations. Keep its Crumble
 brand consistent with the reviewer application. Real retailer names describe
 source records only; do not imply sponsorship or customer adoption.
 

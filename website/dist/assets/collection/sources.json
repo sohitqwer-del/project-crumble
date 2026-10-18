@@ -1,0 +1,47 @@
+{
+  "reviewed_on": "2026-10-18",
+  "creator": "Reistor",
+  "creator_url": "https://unsplash.com/@reistor",
+  "license": "Unsplash License",
+  "license_url": "https://unsplash.com/license",
+  "scope": "Website editorial photo study. No endorsement, design lineage or training-use claim. Photos are not Apache-2.0 assets.",
+  "processing": "Resized and converted to WebP; CSS display crops. No generated content or garment alterations.",
+  "photos": [
+    {
+      "file": "hemp-shift.webp",
+      "photo_id": "dziVRZYOFpI",
+      "source": "https://unsplash.com/photos/a-woman-poses-in-a-simple-linen-dress-dziVRZYOFpI",
+      "download": "https://images.unsplash.com/photo-1747396206869-75ea57b325ce",
+      "source_publication_date": "2025-05-16",
+      "source_camera_metadata": "Canon EOS R5",
+      "sha256": "92a41f9465230253156236e9504d040d3abdc238b2d598bcf6212a35fcbabd40"
+    },
+    {
+      "file": "hemp-shirt.webp",
+      "photo_id": "lVmfE2MAJAY",
+      "source": "https://unsplash.com/photos/woman-wearing-a-white-linen-shirt-lVmfE2MAJAY",
+      "download": "https://images.unsplash.com/photo-1752825609278-f9696bc9d7bd",
+      "source_publication_date": "2025-07-18",
+      "source_camera_metadata": "Canon EOS 5D Mark IV",
+      "sha256": "7d72f3dfaf40f871af6d953aac856652b4e9509ad13291f194c2589d5da74457"
+    },
+    {
+      "file": "floral-dress.webp",
+      "photo_id": "Rr9P08giVJM",
+      "source": "https://unsplash.com/photos/a-smiling-woman-rests-on-a-floral-bed-Rr9P08giVJM",
+      "download": "https://images.unsplash.com/photo-1749817151601-fd73a0b53b2d",
+      "source_publication_date": "2025-06-13",
+      "source_camera_metadata": "Canon EOS R5",
+      "sha256": "54fe61d411e9d7539ecb335d5b4891bb2439fc0d2551f988ea01f5a2038a2389"
+    },
+    {
+      "file": "striped-dress.webp",
+      "photo_id": "wbhotPV9GVE",
+      "source": "https://unsplash.com/photos/happy-woman-smiles-while-looking-over-her-shoulder-wbhotPV9GVE",
+      "download": "https://images.unsplash.com/photo-1749813991859-8953e5b4dd26",
+      "source_publication_date": "2025-06-13",
+      "source_camera_metadata": "Canon EOS R5",
+      "sha256": "6031b8935569c91a4f0d76d1a4a9b59ea19c10e9250a62f4c869b2b110c82c9f"
+    }
+  ]
+}
