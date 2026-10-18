@@ -22,15 +22,16 @@ and converted to WebP. CSS may crop their display. No generative alteration,
 colour change or garment modification was applied. The previous generated
 website photographs are removed from the published asset tree.
 
-The homepage hero uses the striped-dress photograph; its detail story uses the
+The homepage hero uses the striped-dress photograph; its embedding explanation uses the
 shirt photograph. All four photos are credited and linked from the public
 privacy/credits page and studio. Reistor is the source, not a claimed customer
 or sponsor. These images do not prove copying or garment lineage. No model
 training, inference or accuracy result is represented by the photo study.
 
-The studio compares manual visible observations. Its hypothetical operation
-time scenario is separate from the photographs. Hidden pockets, lining and
-construction remain unknown. Downloaded review JSON preserves this separation.
+The public sample archive filters four records by metadata and displays manual
+photo observations. It does not run the embedding model or rank similar images.
+The homepage vector diagram is schematic. Real retrieval runs in the installed
+workspace against its imported and indexed images. Hidden details remain unknown.
 
 The unmodified Manrope font comes from the Google Fonts repository under the
 SIL Open Font License. Its notice is in `dist/assets/fonts/OFL.txt`.

@@ -1,6 +1,6 @@
 import {$, el, state, api, json, run, show, card, select, message, image, empty, updateSelection} from "./ui.js";
 import {openProduct, openComparison, bindReview} from "./detail.js";
-import {bindPhoto, showResults} from "./photo.js";
+import {bindPhoto, beginResults, showResults, failResults} from "./photo.js";
 async function status(){
   state.status=await api("/api/status");const s=state.status,stats=$("#stats");stats.replaceChildren();
   for(const [key,label] of [["products","garments"],["assets","images"],["reviews","reviews"]]){
@@ -46,7 +46,11 @@ document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$("#"+b.datas
 document.addEventListener("open-product",run(e=>openProduct(e.detail)));
 document.addEventListener("workspace-changed",run(status));
 document.addEventListener("select-product",e=>select(e.detail));
-document.addEventListener("find-similar",run(async e=>{show("search");showResults(await api("/api/products/"+encodeURIComponent(e.detail.id)+"/similar"));}));
+document.addEventListener("find-similar",run(async e=>{
+  show("search");const request=beginResults();
+  try{showResults(await api("/api/products/"+encodeURIComponent(e.detail.id)+"/similar"),request);}
+  catch(error){failResults(error,request);}
+}));
 $("#compare-selected").onclick=run(()=>openComparison(state.selected[0].id,state.selected[1].id));
 $("#clear-selection").onclick=()=>{state.selected=[];updateSelection();};
 $("#compare-close").onclick=()=>{show("catalogue");};

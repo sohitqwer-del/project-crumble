@@ -1,4 +1,19 @@
 import {$, api, run, card, message, empty} from "./ui.js";
+let resultsSequence=0;
+export function beginResults(){
+  const request=++resultsSequence;
+  $("#search-grid").replaceChildren();$("#search-grid").setAttribute("aria-busy","true");
+  $("#search-caption").textContent="Finding the closest previous styles in your archive…";
+  message("");
+  return request;
+}
+export function failResults(error,request){
+  if(request!==resultsSequence)return;
+  $("#search-grid").setAttribute("aria-busy","false");
+  $("#search-grid").replaceChildren(empty("Search could not finish.","Your archive has not changed. Try the search again."));
+  $("#search-caption").textContent="Search failed. Please try again.";
+  message(error?.message||"The search could not finish. Please try again.","error");
+}
 export function bindPhoto(){
   let bitmap=null, start=null, loadSequence=0;
   const canvas=$("#crop"), ctx=canvas.getContext("2d");
@@ -19,6 +34,7 @@ export function bindPhoto(){
     if(sequence!==loadSequence){next.close();return;}
     if(next.width*next.height>20_000_000){next.close();throw new Error("Choose an image below 20 megapixels.");}
     bitmap?.close();bitmap=next;
+    resultsSequence++;$("#search-grid").replaceChildren(empty("Reference ready.","Crop to the garment, then find the closest previous styles in your archive."));$("#search-grid").setAttribute("aria-busy","false");$("#search-caption").textContent="New reference selected. Run a search to see its closest previous styles.";message("");
     canvas.width=Math.round(700*Math.min(1,bitmap.width/bitmap.height));
     canvas.height=Math.round(700*Math.min(1,bitmap.height/bitmap.width));
     canvas.hidden=false;$("#crop-controls").hidden=false;$("#crop-reset").hidden=false;$("#search-photo").disabled=false;
@@ -54,21 +70,32 @@ export function bindPhoto(){
     const temp=document.createElement("canvas"),w=(x2-x1)*bitmap.width,h=(y2-y1)*bitmap.height;
     temp.width=Math.max(1,Math.round(w));temp.height=Math.max(1,Math.round(h));
     temp.getContext("2d").drawImage(bitmap,x1*bitmap.width,y1*bitmap.height,w,h,0,0,temp.width,temp.height);
-    const blob=await new Promise(resolve=>temp.toBlob(resolve,"image/jpeg",.95)),data=new FormData();
-    data.append("file",blob,"query.jpg");data.append("category",$("#search-category").value);
-    message("Searching the garment index…");$("#search-grid").setAttribute("aria-busy","true");$("#search-caption").textContent="Finding related garments…";
-    showResults(await api("/api/search/photo",{method:"POST",body:data}));message("");
+    const request=beginResults();
+    try{
+      const blob=await new Promise(resolve=>temp.toBlob(resolve,"image/jpeg",.95)),data=new FormData();
+      if(request!==resultsSequence)return;
+      if(!blob)throw new Error("The crop could not be prepared. Choose the image again and retry.");
+      data.append("file",blob,"query.jpg");data.append("category",$("#search-category").value);data.append("limit","4");
+      message("Searching your style archive…");
+      showResults(await api("/api/search/photo",{method:"POST",body:data}),request);
+    }catch(error){failResults(error,request);}
   });
   $("#text-search").onsubmit=run(async()=>{
     if(!$("#text-query").value.trim())throw new Error("Describe the garment you want to find.");
-    message("Searching by description…");showResults(await api("/api/search/text?q="+encodeURIComponent($("#text-query").value)));message("");
+    const request=beginResults();message("Searching by description…");
+    try{showResults(await api("/api/search/text?q="+encodeURIComponent($("#text-query").value)+"&limit=4"),request);}
+    catch(error){failResults(error,request);}
   });
 }
-export function showResults(data){
+export function showResults(data,request=resultsSequence){
+  if(request!==resultsSequence)return;
   const grid=$("#search-grid");grid.setAttribute("aria-busy","false");grid.replaceChildren();
-  data.items.forEach(r=>grid.append(card(r.product,r.score)));
-  if(!data.items.length)grid.append(empty("No related garments found.","Try a wider crop, another reference image or a different category."));
-  $("#search-caption").textContent=data.items.length+" related garments · "+data.model.provider+" · Similarity scores need human review"+
-    (data.filter_may_limit_results?" / Filters reduced the candidate pool.":"");
+  const items=data.items.slice(0,4);
+  items.forEach((r,i)=>grid.append(card(r.product,r.score,true,i+1,r.matched_image)));
+  if(!items.length)grid.append(empty("No previous styles found.","Try a wider crop, another reference image or a different category. Add and index your previous styles to build the archive."));
+  $("#search-caption").textContent=items.length+" closest previous style"+(items.length===1?"":"s")+" · up to 4 from your indexed archive"+
+    (items.length>0&&items.length<4?" · Fewer than four candidates are available for this search.":"")+
+    (data.filter_may_limit_results?" Filters reduced the candidate pool.":"");
+  message("");
 }
 

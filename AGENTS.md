@@ -17,10 +17,13 @@ Keep image/model/index identity and source snapshots consistent. Unknown parts
 are not absent parts. Inferred claims are proposals. SMV suggestions need
 explicit operation times and factory review. Do not invent accuracy claims.
 
-The website lives in website/dist. Its public website uses licensed real garment photographs with source credits
-and explicitly illustrative operation times, separate from photo observations. Keep its Crumble
-brand consistent with the reviewer application. Real retailer names describe
-source records only; do not imply sponsorship or customer adoption.
+The public website focuses on garment retrieval, database storage and image
+embeddings. Explain the path from image import to a ranked shortlist of up to
+four previous styles. Do not add costing, SMV or segmentation to this landing-page
+scope. Sample archive photos are licensed real photographs with source credits;
+they are not model-ranked search results. The installed app performs actual
+retrieval against the user's indexed collection. Keep brand attribution separate
+from customer or sponsorship claims.
 
 Preserve existing user work. Back up files before editing. Run relevant tests
 and browser checks, then publish authorised completed changes. Production

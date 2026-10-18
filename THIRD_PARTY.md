@@ -11,8 +11,8 @@ Reistor on Unsplash under the Unsplash License: https://unsplash.com/license.
 The photos are not Apache-2.0 assets. Source pages, camera metadata, processing
 notes and hashes are recorded in website/ASSETS.md and the public manifest at
 website/dist/assets/collection/sources.json. Reistor is credited as a source,
-not a customer or sponsor. Photo observations and hypothetical operation-time
-assumptions are recorded separately. No generated photos remain in the website.
+not a customer or sponsor. The sample archive uses manual photo observations;
+its records are not model-ranked results. No generated photos remain in the website.
 
 Project Crumble source is Apache-2.0. This does not relicense dependencies,
 retailer images, factory standards, datasets or separately downloaded models.

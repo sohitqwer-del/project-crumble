@@ -36,13 +36,15 @@ export function dispatch(name,detail){document.dispatchEvent(new CustomEvent(nam
 export function empty(title,text,symbol="↗"){
   const n=el("div",null,"empty-state");n.append(el("span",symbol,"empty-symbol"),el("h3",title),el("p",text));return n;
 }
-export function card(p,score,controls=true){
+export function card(p,score,controls=true,rank=null,matchedImage=null){
   const n=el("article",null,"card");n.dataset.productId=p.id;
-  n.append(image(p.images[0],p.title));
+  const displayImage=matchedImage&&p.images.includes(matchedImage)?matchedImage:p.images[0];
+  n.append(image(displayImage,matchedImage?"Matching archive image: "+p.title:p.title));
   const body=el("div",null,"card-body");
   body.append(el("p",p.brand||"Your collection","eyebrow"),el("h3",p.title));
   body.append(el("p",p.category||"Category not supplied","card-category"));
-  if(score!=null)body.append(el("span","Similarity "+score.toFixed(3)+" · uncalibrated","score"));
+  if(rank!=null)body.prepend(el("p","PREVIOUS STYLE / "+String(rank).padStart(2,"0"),"result-rank"));
+  if(score!=null)body.append(el("span","Similarity "+score.toFixed(3)+" · not a match probability","score"));
   if(controls){
     const actions=el("div",null,"card-actions");
     for(const [label,name] of [["Details","open-product"],["Select to compare","select-product"],["Similar ↗","find-similar"]]){

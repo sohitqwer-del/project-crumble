@@ -1,13 +1,14 @@
 # Project Crumble
 
-An open-source workspace for garment photos, design comparisons, human review and
-suggested changes in Standard Minute Value (SMV).
+An open-source garment archive and visual retrieval workspace. Store your garment
+photos and product records, create image embeddings, then upload a reference to
+retrieve up to four closest previous styles for review.
 
 [Website and browser demo](https://project-crumble.edp395764.chatgpt.site) ·
 [Setup documentation](https://project-crumble.edp395764.chatgpt.site/docs.html)
 
 Status: **0.2.0a1, working alpha**. This release is for local use and retailer pilots.
-It is not a validated factory time system or a managed enterprise service.
+Search quality and deployment scale must be evaluated on your own archive.
 No 98% accuracy claim is made.
 
 ## Run on Windows
@@ -38,9 +39,9 @@ crumble --workspace work demo
 crumble --workspace work serve
 ~~~
 
-Open http://127.0.0.1:8765. Select **dress-a** and **dress-b**, compare them, inspect
-the sleeve and pocket changes, and save a review. The demo uses original drawings,
-simple image descriptors and **invented operation times**. It needs no GPU,
+Open http://127.0.0.1:8765 and choose **Photo search**. Upload a reference to find
+the closest stored styles. The lightweight demo uses original drawings and simple
+image descriptors to check the workflow; it is not the fashion model. It needs no GPU,
 model download, API key, private catalogue or external service.
 
 ## Use your own garments
@@ -67,38 +68,45 @@ One JSON object per input line:
 Only local image paths inside the selected image root are imported. There is no
 built-in scraper. Supply garments and images you have permission to use.
 
-## What is included
+## How retrieval works
 
-- Streamed CSV/JSONL ingestion, multiple views, rights and source provenance.
-- Versioned embeddings, resumable jobs and atomic search index publication.
-- Exact blocked search; optional FAISS HNSW for approximate retrieval.
-- Photo upload/drop/paste, manual garment crop, text search and product search.
-- Structured parts with stated, inferred, verified, invisible and unknown states.
-- Optional visual part proposals; English title extraction as a basic fallback.
-- Side-by-side design changes, part corrections, review queues and JSONL export.
-- Immutable snapshots, stale-review rejection and observed style relationships.
-- Operation-based SMV delta ranges with source references and reviewer decisions.
-- Native Windows operation with cross-process worker locks.
-- A public project website and interactive browser comparison demo.
+1. Import local images with garment IDs, titles, brands, categories and source rights.
+2. Store working image copies and link each view to its product record in SQLite.
+3. Generate an embedding for each image using the configured encoder.
+4. Publish a model-specific vector index.
+5. Encode an uploaded reference with the same model and rank similar vectors.
+6. Return up to four distinct product records in the interface, showing the matched view.
 
-A similar image is not proof of a copied design. Observation dates do not establish
-which brand designed an item first. Whole outfits can hide which garment matched.
+The optional fashion encoder uses a pinned Marqo-FashionSigLIP revision and
+normalised 768-value image embeddings. The index combines multiple matched
+views into one result per product. Fewer eligible products produce fewer results.
 
-## SMV suggestions
+An embedding is a numeric representation for visual comparison. Similarity
+scores rank candidates; they are not match probabilities. Importing images
+creates embeddings and an index; it does not train a new model.
 
-Crumble maps changed part values to a **user-supplied operation library**. Each
-operation specifies standard minutes, quantity, machine and evidence source.
-It reports the delta for mapped operations and lists unresolved changes. It does
-not infer an exact garment SMV, factory efficiency or labour cost from an image.
+## Retrieval and archive features
 
-~~~sh
-crumble --workspace retailer operations your-operation-library.json
-~~~
+- CSV/JSONL import, multiple image views and source/rights metadata.
+- SQLite garment records, immutable snapshots and linked working image files.
+- Versioned embeddings, resumable jobs and atomic index publication.
+- Exact blocked vector search; optional FAISS HNSW for approximate retrieval.
+- Photo upload, drop, paste and manual crop; text search with the fashion encoder.
+- Category filtering and title/brand lookup.
+- Top-four result cards with the matched image and links to stored records.
+- Product views, source context and existing review history.
+- A public explanation site and a clearly labelled four-record sample archive.
 
-See [SMV rules](docs/SMV.md), [data format](docs/DATA.md),
-[architecture](docs/ARCHITECTURE.md), [deployment](docs/DEPLOYMENT.md),
-[model notes](MODEL_CARD.md), [evaluation](docs/EVALUATION.md),
-[API](docs/API.md), and [contributing](CONTRIBUTING.md).
+The application searches your imported collection. There is no built-in retailer
+scraper or shared global catalogue. A retrieved style is a useful reference,
+not evidence of a launch date, influence or copying.
+
+The workspace stores oriented, resized JPEG derivatives. Keep original image
+files separately if you need a lossless asset archive.
+
+See [data format](docs/DATA.md), [architecture](docs/ARCHITECTURE.md),
+[deployment](docs/DEPLOYMENT.md), [model notes](MODEL_CARD.md),
+[evaluation](docs/EVALUATION.md), [API](docs/API.md), and [contributing](CONTRIBUTING.md).
 
 ## Licence
 
